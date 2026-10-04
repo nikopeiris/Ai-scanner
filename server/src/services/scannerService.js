@@ -12,9 +12,8 @@ class ScannerService {
   getOpenAIInstance() {
     return config.openAiApiKey
       ? new OpenAI({
-          apiKey: config.openAiApiKey,
-          baseURL: "https://agent.elliottwen.info/v1",
-        })
+        apiKey: config.openAiApiKey
+      })
       : null;
   }
 
@@ -134,7 +133,7 @@ ${fetchedCodeFiles.map((f) => `--- FILE: ${f.path} ---\n${f.content}\n`).join("\
 `;
 
         const completion = await openai.chat.completions.create({
-          model: "MiniMax-M3",
+          model: "gpt-5-nano",
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: "You are an expert static analysis and code audit AI." },

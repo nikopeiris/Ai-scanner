@@ -19,6 +19,7 @@ import {
   LogOut,
   User,
 } from "lucide-react";
+import { FaGithub as Github } from "react-icons/fa";
 
 export default function Home() {
   const [repoUrl, setRepoUrl] = useState("https://github.com/expressjs/express");

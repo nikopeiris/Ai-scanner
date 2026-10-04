@@ -29,3 +29,6 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+
+#.client
+client/.next/
