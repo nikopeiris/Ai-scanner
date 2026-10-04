@@ -13,8 +13,11 @@ import {
   RefreshCw,
   Code2,
   FileCode,
-  ArrowRight,
   Zap,
+  Lock,
+  Globe,
+  LogOut,
+  User,
 } from "lucide-react";
 
 export default function Home() {
@@ -25,30 +28,116 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("bugs"); // 'bugs' | 'fragile' | 'improvements'
   const [scanResult, setScanResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  // GitHub Auth & Repos state
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [userRepos, setUserRepos] = useState([]);
+  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [searchRepoQuery, setSearchRepoQuery] = useState("");
+
   const terminalEndRef = useRef(null);
+
+  // Check stored auth session or URL code on load
+  useEffect(() => {
+    const storedToken = localStorage.getItem("gh_access_token");
+    const storedUser = localStorage.getItem("gh_user");
+
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
+      fetchUserRepos(storedToken);
+    }
+
+    // Check OAuth callback query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+
+    if (code) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      exchangeCodeForToken(code);
+    }
+  }, []);
 
   // Auto-scroll terminal to latest log
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [progressLogs]);
 
-  const startScan = async (e) => {
+  const exchangeCodeForToken = async (code) => {
+    try {
+      const res = await fetch("http://localhost:5000/auth/github/callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed GitHub OAuth login");
+
+      setToken(data.accessToken);
+      setUser(data.user);
+      localStorage.setItem("gh_access_token", data.accessToken);
+      localStorage.setItem("gh_user", JSON.stringify(data.user));
+
+      fetchUserRepos(data.accessToken);
+    } catch (err) {
+      setErrorMsg(`GitHub Authentication failed: ${err.message}`);
+    }
+  };
+
+  const fetchUserRepos = async (authToken) => {
+    setLoadingRepos(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/user/repos", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.repos) {
+        setUserRepos(data.repos);
+      }
+    } catch (err) {
+      console.error("Error loading user repos:", err);
+    } finally {
+      setLoadingRepos(false);
+    }
+  };
+
+  const handleGitHubLogin = () => {
+    window.location.href = "http://localhost:5000/auth/github";
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setToken(null);
+    setUserRepos([]);
+    localStorage.removeItem("gh_access_token");
+    localStorage.removeItem("gh_user");
+  };
+
+  const scanSpecificRepo = (repoObj) => {
+    setRepoUrl(repoObj.htmlUrl);
+    runScan({ repoUrl: repoObj.htmlUrl, owner: repoObj.owner, repo: repoObj.name });
+  };
+
+  const startScanFromForm = (e) => {
     e?.preventDefault();
     if (!repoUrl.trim()) return;
+    runScan({ repoUrl: repoUrl.trim() });
+  };
 
+  const runScan = async ({ repoUrl, owner, repo }) => {
     setScanning(true);
     setProgressLogs([]);
     setProgressPercent(5);
     setScanResult(null);
     setErrorMsg(null);
 
-    // Setup SSE EventSource connection
     let eventSource;
     try {
       eventSource = new EventSource("http://localhost:5000/api/scan/stream");
 
-      eventSource.addEventListener("connected", (e) => {
-        const data = JSON.parse(e.data);
+      eventSource.addEventListener("connected", () => {
         setProgressLogs((prev) => [
           ...prev,
           { timestamp: new Date().toLocaleTimeString(), message: "📡 SSE Stream Connected", type: "system" },
@@ -73,7 +162,6 @@ export default function Home() {
       });
 
       eventSource.onerror = () => {
-        // SSE closed or errored, close connection gracefully
         eventSource.close();
       };
     } catch (sseErr) {
@@ -81,10 +169,15 @@ export default function Home() {
     }
 
     try {
+      const headers = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch("http://localhost:5000/api/scan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl: repoUrl.trim() }),
+        headers,
+        body: JSON.stringify({ repoUrl, owner, repo }),
       });
 
       const data = await response.json();
@@ -105,9 +198,15 @@ export default function Home() {
     }
   };
 
+  const filteredUserRepos = userRepos.filter(
+    (r) =>
+      r.name.toLowerCase().includes(searchRepoQuery.toLowerCase()) ||
+      r.fullName.toLowerCase().includes(searchRepoQuery.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
-      {/* Top Header / Brand Banner */}
+      {/* Top Header */}
       <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -121,17 +220,104 @@ export default function Home() {
               <p className="text-xs text-slate-400">Automated GitHub Code Quality & Bug Scanner</p>
             </div>
           </div>
+
           <div className="flex items-center space-x-4">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              Engine Online
-            </span>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 px-3 py-1.5 rounded-xl">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.login} className="w-6 h-6 rounded-full" />
+                  ) : (
+                    <User className="w-4 h-4 text-cyan-400" />
+                  )}
+                  <span className="text-xs font-medium text-slate-200">{user.login}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  title="Sign Out"
+                  className="p-2 hover:bg-slate-800 text-slate-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleGitHubLogin}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 shadow-md transition-all cursor-pointer"
+              >
+                <Github className="w-4 h-4" />
+                Sign in with GitHub
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Input Header Section */}
+        {/* Authenticated Private Repos Dashboard */}
+        {user && (
+          <section className="bg-slate-900/60 border border-cyan-900/40 rounded-2xl p-6 backdrop-blur-sm space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Github className="w-4 h-4 text-cyan-400" />
+                  Your GitHub Repositories (Public & Private)
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Select a repository to launch instant deep audit scan with private access credentials.
+                </p>
+              </div>
+              <div className="relative w-full sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Filter repositories..."
+                  value={searchRepoQuery}
+                  onChange={(e) => setSearchRepoQuery(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-1.5 px-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                />
+              </div>
+            </div>
+
+            {loadingRepos ? (
+              <div className="py-8 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" /> Fetching your repository list...
+              </div>
+            ) : filteredUserRepos.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-500">No repositories found.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto pr-1">
+                {filteredUserRepos.map((repo) => (
+                  <button
+                    key={repo.id}
+                    onClick={() => scanSpecificRepo(repo)}
+                    disabled={scanning}
+                    className="text-left p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-cyan-500/50 hover:bg-slate-900/80 transition-all space-y-1.5 group cursor-pointer disabled:opacity-50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-xs text-slate-200 group-hover:text-cyan-400 truncate max-w-[180px]">
+                        {repo.name}
+                      </span>
+                      {repo.private ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          <Lock className="w-2.5 h-2.5" /> Private
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <Globe className="w-2.5 h-2.5" /> Public
+                        </span>
+                      )}
+                    </div>
+                    {repo.description && (
+                      <p className="text-[11px] text-slate-400 line-clamp-1">{repo.description}</p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Input Header Section (Public URL Fallback) */}
         <section className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 sm:p-8 backdrop-blur-sm relative overflow-hidden shadow-2xl">
           <div className="absolute -right-16 -top-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="max-w-3xl space-y-4">
@@ -142,11 +328,11 @@ export default function Home() {
               Scan any GitHub repository for bugs, fragile logic, & improvements
             </h2>
             <p className="text-sm text-slate-400 leading-relaxed">
-              Enter a public GitHub repository URL. Our backend fetches key source code files via GitHub REST API,
-              analyzes logic paths using OpenAI, and streams live audit telemetry.
+              Enter a public GitHub repository URL or sign in with GitHub above to audit private projects.
+              Our backend fetches key source code files via GitHub REST API, analyzes logic paths using AI, and streams live telemetry.
             </p>
 
-            <form onSubmit={startScan} className="pt-2 flex flex-col sm:flex-row gap-3">
+            <form onSubmit={startScanFromForm} className="pt-2 flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-500" />
                 <input
@@ -328,10 +514,9 @@ export default function Home() {
 
             {/* Tab Contents */}
             <div className="space-y-4">
-              {/* Tab 1: Critical Bugs */}
               {activeTab === "bugs" && (
                 <div className="space-y-4">
-                  {(!scanResult.criticalBugs || scanResult.criticalBugs.length === 0) ? (
+                  {!scanResult.criticalBugs || scanResult.criticalBugs.length === 0 ? (
                     <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
                       <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
                       No critical bugs detected in analyzed files!
@@ -372,10 +557,9 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Tab 2: Fragile Logic */}
               {activeTab === "fragile" && (
                 <div className="space-y-4">
-                  {(!scanResult.fragileLogic || scanResult.fragileLogic.length === 0) ? (
+                  {!scanResult.fragileLogic || scanResult.fragileLogic.length === 0 ? (
                     <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
                       <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
                       No fragile logic or unhandled edge cases detected.
@@ -416,10 +600,9 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Tab 3: Suggested Improvements */}
               {activeTab === "improvements" && (
                 <div className="space-y-4">
-                  {(!scanResult.improvements || scanResult.improvements.length === 0) ? (
+                  {!scanResult.improvements || scanResult.improvements.length === 0 ? (
                     <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
                       <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
                       No further code quality improvements suggested.
