@@ -8,7 +8,7 @@ import {
   ShieldAlert,
   Lightbulb,
   CheckCircle2,
-  Github,
+  FolderGit2,
   Sparkles,
   RefreshCw,
   Code2,
@@ -136,7 +136,7 @@ export default function Home() {
           <div className="absolute -right-16 -top-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="max-w-3xl space-y-4">
             <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-950/60 px-3 py-1 rounded-md border border-cyan-800/50">
-              <Github className="w-3.5 h-3.5" /> Repository Auditor
+              <FolderGit2 className="w-3.5 h-3.5" /> Repository Auditor
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Scan any GitHub repository for bugs, fragile logic, & improvements
@@ -220,10 +220,10 @@ export default function Home() {
                         log.type === "error"
                           ? "text-rose-400 font-semibold"
                           : log.type === "warning"
-                          ? "text-amber-400 font-semibold"
-                          : log.type === "system"
-                          ? "text-cyan-400"
-                          : "text-slate-300"
+                            ? "text-amber-400 font-semibold"
+                            : log.type === "system"
+                              ? "text-cyan-400"
+                              : "text-slate-300"
                       }
                     >
                       {log.message}
@@ -285,11 +285,10 @@ export default function Home() {
             <div className="flex border-b border-slate-800 space-x-2 sm:space-x-4">
               <button
                 onClick={() => setActiveTab("bugs")}
-                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                  activeTab === "bugs"
-                    ? "border-rose-500 text-rose-400 bg-rose-500/5"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
-                }`}
+                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${activeTab === "bugs"
+                  ? "border-rose-500 text-rose-400 bg-rose-500/5"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
               >
                 <ShieldAlert className="w-4 h-4" />
                 Critical Bugs
@@ -300,11 +299,10 @@ export default function Home() {
 
               <button
                 onClick={() => setActiveTab("fragile")}
-                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                  activeTab === "fragile"
-                    ? "border-amber-500 text-amber-400 bg-amber-500/5"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
-                }`}
+                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${activeTab === "fragile"
+                  ? "border-amber-500 text-amber-400 bg-amber-500/5"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
               >
                 <AlertTriangle className="w-4 h-4" />
                 Fragile Logic & Edge Cases
@@ -315,11 +313,10 @@ export default function Home() {
 
               <button
                 onClick={() => setActiveTab("improvements")}
-                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                  activeTab === "improvements"
-                    ? "border-cyan-500 text-cyan-400 bg-cyan-500/5"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
-                }`}
+                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${activeTab === "improvements"
+                  ? "border-cyan-500 text-cyan-400 bg-cyan-500/5"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
               >
                 <Lightbulb className="w-4 h-4" />
                 Suggested Improvements

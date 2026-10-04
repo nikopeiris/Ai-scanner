@@ -143,22 +143,21 @@ app.post("/api/scan", async (req, res) => {
       // Try fetching main branch tree
       let treeRes;
       try {
+        const repoInfo = await octokit.rest.repos.get({
+          owner,
+          repo
+        });
+        defaultBranch = repoInfo.data.default_branch;
+
         treeRes = await octokit.git.getTree({
           owner,
           repo,
-          tree_sha: "main",
+          tree_sha: defaultBranch,
           recursive: "1",
         });
-        defaultBranch = "main";
-      } catch (errMain) {
-        // Fallback to master
-        treeRes = await octokit.git.getTree({
-          owner,
-          repo,
-          tree_sha: "master",
-          recursive: "1",
-        });
-        defaultBranch = "master";
+      } catch (error_) {
+        console.log("Error fetching main branch tree", error_.message);
+        return res.status(500).json({ error: "Failed to scan repository", details: error_.message });
       }
 
       if (treeRes && treeRes.data && treeRes.data.tree) {
@@ -249,7 +248,7 @@ ${fetchedCodeFiles.map((f) => `--- FILE: ${f.path} ---\n${f.content}\n`).join("\
 `;
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: "gpt-5-nano",
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: "You are an expert static analysis and code audit AI." },
