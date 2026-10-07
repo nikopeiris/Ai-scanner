@@ -17,7 +17,7 @@ class ScannerService {
       : null;
   }
 
-  async scanRepository({ owner, repo, authToken }) {
+  async scanRepository({ owner, repo, authToken, context }) {
     const octokit = this.getOctokitInstance(authToken);
     const openai = this.getOpenAIInstance();
 
@@ -127,6 +127,7 @@ Examine the following source files and return a JSON object with this EXACT stru
     { "file": "path/file.ext", "category": "...", "suggestion": "..." }
   ]
 }
+${context != null ? "The code should follow this logic: " + context : ""}
 
 Code Files:
 ${fetchedCodeFiles.map((f) => `--- FILE: ${f.path} ---\n${f.content}\n`).join("\n")}

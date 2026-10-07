@@ -21,12 +21,13 @@ exports.handleSSEStream = (req, res) => {
 };
 
 exports.scanRepo = async (req, res) => {
-  const { repoUrl, owner: reqOwner, repo: reqRepo } = req.body;
+  const { repoUrl, owner: reqOwner, repo: reqRepo, context: cleanedText } = req.body;
   const authHeader = req.headers.authorization;
   const authToken = authHeader ? authHeader.replace("Bearer ", "").trim() : null;
 
   let owner = reqOwner;
   let repo = reqRepo;
+  let context = cleanedText;
 
   if (!owner || !repo) {
     if (!repoUrl) {
@@ -42,11 +43,16 @@ exports.scanRepo = async (req, res) => {
     repo = parsed.repo;
   }
 
+  if (!context) {
+    context = null;
+  }
+
   try {
     const report = await scannerService.scanRepository({
       owner,
       repo,
       authToken,
+      context,
     });
 
     return res.json({
