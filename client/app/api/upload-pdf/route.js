@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import pdfParse from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 
 export const runtime = "nodejs";
 
@@ -8,14 +8,17 @@ export async function POST(request) {
     const formData = await request.formData();
     const file = formData.get("file");
 
-    if (file?.type != "application/pdf") {
-      return NextResponse.json({ error: "File must be Pdf type" }, { staus: 400 });
+    if (!file || (file.type !== "application/pdf" && !file.name?.toLowerCase().endsWith(".pdf"))) {
+      return NextResponse.json({ error: "File must be PDF type" }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const text = await pdfParse(buffer);
-    const cleaned = text.text.repalce(/\n\s*\n/g, "\n").trim();
+    const parser = new PDFParse({ data: buffer });
+    const textResult = await parser.getText();
+    await parser.destroy();
+
+    const cleaned = (textResult?.text || "").replace(/\n\s*\n/g, "\n").trim();
 
     return NextResponse.json({
       success: true,

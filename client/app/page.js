@@ -18,6 +18,11 @@ import {
   Globe,
   LogOut,
   User,
+  FileText,
+  UploadCloud,
+  X,
+  Paperclip,
+  FileCheck,
 } from "lucide-react";
 import { FaGithub as Github } from "react-icons/fa";
 
@@ -37,7 +42,30 @@ export default function Home() {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [searchRepoQuery, setSearchRepoQuery] = useState("");
 
+  // PDF Attachment state
+  const [pdfFile, setPdfFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   const terminalEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const handlePdfFileSelect = (file) => {
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setErrorMsg("Attached file must be a valid PDF document.");
+      return;
+    }
+    setErrorMsg(null);
+    setPdfFile(file);
+  };
+
+  const handlePdfDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handlePdfFileSelect(e.dataTransfer.files[0]);
+    }
+  };
 
   // Check stored auth session or URL code on load
   useEffect(() => {
@@ -170,6 +198,44 @@ export default function Home() {
     }
 
     try {
+      let pdfContextText = null;
+
+      if (pdfFile) {
+        setProgressLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            message: `📄 Parsing attached PDF '${pdfFile.name}' via /api/upload-pdf...`,
+            type: "system",
+          },
+        ]);
+
+        const formData = new FormData();
+        formData.append("file", pdfFile);
+
+        const pdfRes = await fetch("/api/upload-pdf", {
+          method: "POST",
+          body: formData,
+        });
+
+        const pdfData = await pdfRes.json();
+
+        if (!pdfRes.ok || !pdfData.success) {
+          throw new Error(pdfData.error || "Failed to parse attached PDF document.");
+        }
+
+        pdfContextText = pdfData.text;
+
+        setProgressLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            message: `✅ PDF text parsed successfully (${pdfContextText.length} characters attached as context)`,
+            type: "info",
+          },
+        ]);
+      }
+
       const headers = { "Content-Type": "application/json" };
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
@@ -178,7 +244,7 @@ export default function Home() {
       const response = await fetch("http://localhost:5000/api/scan", {
         method: "POST",
         headers,
-        body: JSON.stringify({ repoUrl, owner, repo }),
+        body: JSON.stringify({ repoUrl, owner, repo, context: pdfContextText }),
       });
 
       const data = await response.json();
@@ -318,22 +384,25 @@ export default function Home() {
           </section>
         )}
 
-        {/* Input Header Section (Public URL Fallback) */}
-        <section className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 sm:p-8 backdrop-blur-sm relative overflow-hidden shadow-2xl">
-          <div className="absolute -right-16 -top-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-950/60 px-3 py-1 rounded-md border border-cyan-800/50">
-              <FolderGit2 className="w-3.5 h-3.5" /> Repository Auditor
+        {/* Input Header Section & PDF Attachment Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Input Header Section (Public URL Fallback) */}
+          <section className="lg:col-span-2 bg-slate-900/40 border border-slate-800 rounded-2xl p-6 sm:p-8 backdrop-blur-sm relative overflow-hidden shadow-2xl flex flex-col justify-between">
+            <div className="absolute -right-16 -top-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-950/60 px-3 py-1 rounded-md border border-cyan-800/50">
+                <FolderGit2 className="w-3.5 h-3.5" /> Repository Auditor
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Scan any GitHub repository for bugs, fragile logic, & improvements
+              </h2>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Enter a public GitHub repository URL or sign in with GitHub above to audit private projects.
+                Our backend fetches key source code files via GitHub REST API, analyzes logic paths using AI, and streams live telemetry.
+              </p>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Scan any GitHub repository for bugs, fragile logic, & improvements
-            </h2>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Enter a public GitHub repository URL or sign in with GitHub above to audit private projects.
-              Our backend fetches key source code files via GitHub REST API, analyzes logic paths using AI, and streams live telemetry.
-            </p>
 
-            <form onSubmit={startScanFromForm} className="pt-2 flex flex-col sm:flex-row gap-3">
+            <form onSubmit={startScanFromForm} className="pt-6 flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-500" />
                 <input
@@ -362,8 +431,99 @@ export default function Home() {
                 )}
               </button>
             </form>
-          </div>
-        </section>
+          </section>
+
+          {/* PDF Attachment Section (Right Side) */}
+          <section className="lg:col-span-1 bg-slate-900/40 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden shadow-2xl flex flex-col justify-between space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-purple-400 bg-purple-950/60 px-3 py-1 rounded-md border border-purple-800/50">
+                  <Paperclip className="w-3.5 h-3.5" /> PDF Reference Document
+                </span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
+                  Optional Context
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-slate-200">
+                Attach Specification or Requirements PDF
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Attached PDFs will be parsed via <code className="text-cyan-400 bg-slate-950 px-1 py-0.5 rounded border border-slate-800">/api/upload-pdf</code> and sent as prompt context for the scan.
+              </p>
+            </div>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".pdf,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handlePdfFileSelect(e.target.files[0]);
+                }
+              }}
+            />
+
+            {!pdfFile ? (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handlePdfDrop}
+                className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group ${isDragging
+                  ? "border-cyan-500 bg-cyan-950/30"
+                  : "border-slate-800 hover:border-cyan-500/60 hover:bg-slate-900/60 bg-slate-950/50"
+                  }`}
+              >
+                <div className="p-3 rounded-full bg-slate-900 border border-slate-800 text-cyan-400 group-hover:scale-110 group-hover:border-cyan-500/50 transition-all">
+                  <UploadCloud className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-slate-200 group-hover:text-cyan-300">
+                    Click to attach or drag PDF here
+                  </p>
+                  <p className="text-[11px] text-slate-500">Supports .pdf files</p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-950/80 border border-emerald-500/30 rounded-xl p-4 flex items-center justify-between gap-3 shadow-lg">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
+                    <FileCheck className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-slate-100 truncate" title={pdfFile.name}>
+                      {pdfFile.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-slate-400">
+                        {(pdfFile.size / 1024).toFixed(1)} KB
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-1.5 py-0.5 rounded">
+                        <CheckCircle2 className="w-2.5 h-2.5" /> Ready for Scan
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPdfFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  title="Remove attached PDF"
+                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-950/50 rounded-lg transition-all flex-shrink-0 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
 
         {/* Error Alert Card */}
         {errorMsg && (
