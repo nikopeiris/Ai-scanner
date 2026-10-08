@@ -119,13 +119,13 @@ Examine the following source files and return a JSON object with this EXACT stru
   "summary": "An executive summary of the repository quality.",
   "rating": "an overall rating out of 100 based on number of critical bugs, fragile logic and maintainability issues based on below context.",
   "criticalBugs": [
-    { "file": "path/file.ext", "issue": "concise description of the bug", "impact": "Impact of the bug", "brokenCode": "broken code", "recommendedFix": "fixed code" }
+    { "file": "path/file.ext", "issue": "concise description of the bug", "impact": "Impact of the bug", "brokenCode": "snippet of code that needs fixing", "recommendedFix": "fixed code snippet" }
   ],
   "fragileLogic": [
-    { "file": "path/file.ext", "risk": "Description of the risk", "scenario": "Scenario where the bug may occur", "brokenCode": "broken code", "recommendedFix": "fixed code"}
+    { "file": "path/file.ext", "risk": "Description of the risk", "scenario": "Scenario where the bug may occur", "brokenCode": "snippet of code that needs fixing", "recommendedFix": "fixed code snippet"}
   ],
   "maintainabilitySuggestions": [
-    { "file": "path/file.ext", "issue": "concise description of maintainability issue", "brokenCode": "section of code that needs fixing", "recommendedFix": "fixed code" }
+    { "file": "path/file.ext", "issue": "concise description of maintainability issue", "brokenCode": "snippet of code that needs fixing", "recommendedFix": "fixed code snippet" }
   ]
 }
 ${context != null ? "The code should follow this logic: " + context : ""}

@@ -33,6 +33,7 @@ import {
   Wrench,
   Flame,
   Activity,
+  Bug,
 } from "lucide-react";
 import { FaGithub as Github } from "react-icons/fa";
 
@@ -96,10 +97,10 @@ function FormattedCodeBlock({ code, colorTheme = "emerald" }) {
     colorTheme === "rose"
       ? "text-rose-200"
       : colorTheme === "amber"
-      ? "text-amber-200"
-      : colorTheme === "cyan"
-      ? "text-cyan-200"
-      : "text-emerald-200";
+        ? "text-amber-200"
+        : colorTheme === "cyan"
+          ? "text-cyan-200"
+          : "text-emerald-200";
 
   return (
     <div className="font-mono text-xs overflow-x-auto leading-relaxed bg-slate-950 p-4 rounded-b-xl border-t border-slate-800/80 max-h-96">
@@ -285,7 +286,6 @@ export default function Home() {
 
   const scanSpecificRepo = (repoObj) => {
     setRepoUrl(repoObj.htmlUrl);
-    runScan({ repoUrl: repoObj.htmlUrl, owner: repoObj.owner, repo: repoObj.name });
   };
 
   const startScanFromForm = (e) => {
@@ -308,7 +308,7 @@ export default function Home() {
       eventSource.addEventListener("connected", () => {
         setProgressLogs((prev) => [
           ...prev,
-          { timestamp: new Date().toLocaleTimeString(), message: "📡 SSE Stream Connected", type: "system" },
+          { timestamp: new Date().toLocaleTimeString(), message: "📡 Server Connected", type: "system" },
         ]);
       });
 
@@ -344,7 +344,7 @@ export default function Home() {
           ...prev,
           {
             timestamp: new Date().toLocaleTimeString(),
-            message: `📄 Parsing attached PDF '${pdfFile.name}' via /api/upload-pdf...`,
+            message: `📄 Parsing attached PDF '${pdfFile.name}'`,
             type: "system",
           },
         ]);
@@ -369,7 +369,7 @@ export default function Home() {
           ...prev,
           {
             timestamp: new Date().toLocaleTimeString(),
-            message: `✅ PDF text parsed successfully (${pdfContextText.length} characters attached as context)`,
+            message: `✅ PDF text parsed successfully context`,
             type: "info",
           },
         ]);
@@ -416,14 +416,14 @@ export default function Home() {
       <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
-              <Sparkles className="w-5 h-5 animate-pulse" />
+            <div className="p-2 rounded-xl bg-white text-blue-600 shadow-lg shadow-blue-500/30 animate-pulse-slow flex items-center justify-center">
+              <Bug className="w-5 h-5" />
             </div>
             <div>
               <h1 className="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                AI App Tester
+                Bugzy
               </h1>
-              <p className="text-xs text-slate-400">Automated GitHub Code Quality & Bug Scanner</p>
+              <p className="text-xs text-slate-400">Automate Your Testing</p>
             </div>
           </div>
 
@@ -680,7 +680,7 @@ export default function Home() {
             <div className="bg-slate-900 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Terminal className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-mono font-medium text-slate-300">Live SSE Telemetry Stream</span>
+                <span className="text-xs font-mono font-medium text-slate-300">Live Updates</span>
               </div>
               <div className="flex items-center space-x-3">
                 <span className="text-xs font-mono text-cyan-400 font-semibold">{progressPercent}%</span>
@@ -774,26 +774,24 @@ export default function Home() {
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Quality Score</span>
                     <div className="relative flex items-center justify-center">
                       <span
-                        className={`text-4xl font-extrabold tracking-tight ${
-                          numericRating >= 80
-                            ? "text-emerald-400"
-                            : numericRating >= 60
+                        className={`text-4xl font-extrabold tracking-tight ${numericRating >= 80
+                          ? "text-emerald-400"
+                          : numericRating >= 60
                             ? "text-amber-400"
                             : "text-rose-400"
-                        }`}
+                          }`}
                       >
                         {numericRating}
                       </span>
                       <span className="text-xs font-bold text-slate-500 ml-0.5 mt-2">/100</span>
                     </div>
                     <span
-                      className={`text-[11px] font-bold mt-1 px-2.5 py-0.5 rounded-full ${
-                        numericRating >= 80
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : numericRating >= 60
+                      className={`text-[11px] font-bold mt-1 px-2.5 py-0.5 rounded-full ${numericRating >= 80
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : numericRating >= 60
                           ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                           : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                      }`}
+                        }`}
                     >
                       {numericRating >= 80 ? "Good Quality" : numericRating >= 60 ? "Needs Review" : "Critical Action Required"}
                     </span>
@@ -805,11 +803,10 @@ export default function Home() {
               <div className="flex border-b border-slate-800 space-x-2 sm:space-x-4">
                 <button
                   onClick={() => setMainReportTab("overall")}
-                  className={`px-5 py-3.5 text-sm font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                    mainReportTab === "overall"
-                      ? "border-cyan-500 text-cyan-400 bg-cyan-500/5 shadow-sm"
-                      : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
-                  }`}
+                  className={`px-5 py-3.5 text-sm font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${mainReportTab === "overall"
+                    ? "border-cyan-500 text-cyan-400 bg-cyan-500/5 shadow-sm"
+                    : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
+                    }`}
                 >
                   <PieChart className="w-4 h-4" />
                   Overall Insights
@@ -817,11 +814,10 @@ export default function Home() {
 
                 <button
                   onClick={() => setMainReportTab("deep")}
-                  className={`px-5 py-3.5 text-sm font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                    mainReportTab === "deep"
-                      ? "border-cyan-500 text-cyan-400 bg-cyan-500/5 shadow-sm"
-                      : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
-                  }`}
+                  className={`px-5 py-3.5 text-sm font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${mainReportTab === "deep"
+                    ? "border-cyan-500 text-cyan-400 bg-cyan-500/5 shadow-sm"
+                    : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
+                    }`}
                 >
                   <BarChart3 className="w-4 h-4" />
                   Deep Insights
@@ -1001,19 +997,17 @@ export default function Home() {
                             return (
                               <div
                                 key={idx}
-                                className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${
-                                  isHighRisk
-                                    ? "bg-rose-950/20 border-rose-900/40 hover:border-rose-700/60"
-                                    : stats.fragile > 0
+                                className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${isHighRisk
+                                  ? "bg-rose-950/20 border-rose-900/40 hover:border-rose-700/60"
+                                  : stats.fragile > 0
                                     ? "bg-amber-950/20 border-amber-900/40 hover:border-amber-700/60"
                                     : "bg-cyan-950/20 border-cyan-900/40 hover:border-cyan-700/60"
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-center gap-2 overflow-hidden">
                                   <Code2
-                                    className={`w-4 h-4 flex-shrink-0 ${
-                                      isHighRisk ? "text-rose-400" : stats.fragile > 0 ? "text-amber-400" : "text-cyan-400"
-                                    }`}
+                                    className={`w-4 h-4 flex-shrink-0 ${isHighRisk ? "text-rose-400" : stats.fragile > 0 ? "text-amber-400" : "text-cyan-400"
+                                      }`}
                                   />
                                   <span className="text-xs font-mono font-medium text-slate-200 truncate" title={filePath}>
                                     {filePath}
@@ -1054,11 +1048,10 @@ export default function Home() {
                   <div className="flex flex-wrap items-center gap-3 bg-slate-950/80 p-2 rounded-xl border border-slate-800">
                     <button
                       onClick={() => setDeepCategory("criticalBugs")}
-                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                        deepCategory === "criticalBugs"
-                          ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-md"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                      }`}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${deepCategory === "criticalBugs"
+                        ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-md"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                        }`}
                     >
                       <ShieldAlert className="w-4 h-4 text-rose-400" />
                       Critical Bugs
@@ -1069,11 +1062,10 @@ export default function Home() {
 
                     <button
                       onClick={() => setDeepCategory("fragileLogic")}
-                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                        deepCategory === "fragileLogic"
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-md"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                      }`}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${deepCategory === "fragileLogic"
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-md"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                        }`}
                     >
                       <AlertTriangle className="w-4 h-4 text-amber-400" />
                       Fragile Logic & Edge Cases
@@ -1084,11 +1076,10 @@ export default function Home() {
 
                     <button
                       onClick={() => setDeepCategory("maintainabilitySuggestions")}
-                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                        deepCategory === "maintainabilitySuggestions"
-                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-md"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                      }`}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${deepCategory === "maintainabilitySuggestions"
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-md"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                        }`}
                     >
                       <Lightbulb className="w-4 h-4 text-cyan-400" />
                       Maintainability Suggestions
@@ -1461,7 +1452,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-6 mt-12 text-center text-xs text-slate-500">
-        AI App Tester &bull; GitHub REST API & OpenAI Structured Outputs &bull; Built with Node.js & Next.js
+        @2026 Bugzy - AI Scanner. All rights reserved.
       </footer>
     </div>
   );

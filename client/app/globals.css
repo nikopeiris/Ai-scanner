@@ -41,3 +41,19 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #1e293b #090d16;
 }
+
+/* Custom Slow Pulse Animation */
+@keyframes pulseSlow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(0.97);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 3.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

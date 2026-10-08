@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "AI App Tester - GitHub Repository Inspector",
+  title: "Bugzy - GitHub Repository Inspector",
   description: "Automated static analysis, bug detection, and code improvement scanner powered by AI.",
 };
 
