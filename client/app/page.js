@@ -9,16 +9,12 @@ import {
   Lightbulb,
   CheckCircle2,
   FolderGit2,
-  Sparkles,
   RefreshCw,
   Code2,
-  FileCode,
-  Zap,
   Lock,
   Globe,
   LogOut,
   User,
-  FileText,
   UploadCloud,
   X,
   Paperclip,
@@ -29,10 +25,7 @@ import {
   ChevronUp,
   Copy,
   Check,
-  Layers,
-  Wrench,
   Flame,
-  Activity,
   Bug,
 } from "lucide-react";
 import { FaGithub as Github } from "react-icons/fa";
@@ -416,7 +409,7 @@ export default function Home() {
       <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-xl bg-white text-blue-600 shadow-lg shadow-blue-500/30 animate-pulse-slow flex items-center justify-center">
+            <div className="p-2 rounded-xl bg-white text-cyan-400 shadow-lg shadow-blue-500/30 animate-pulse-slow flex items-center justify-center">
               <Bug className="w-5 h-5" />
             </div>
             <div>
@@ -564,7 +557,7 @@ export default function Home() {
                   </>
                 ) : (
                   <>
-                    <Zap className="w-4 h-4 fill-white" /> Scan Repository
+                    <Search className="w-4 h-4" /> Scan Repository
                   </>
                 )}
               </button>
