@@ -391,14 +391,13 @@ export default function Home() {
             <div className="absolute -right-16 -top-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-950/60 px-3 py-1 rounded-md border border-cyan-800/50">
-                <FolderGit2 className="w-3.5 h-3.5" /> Repository Auditor
+                <FolderGit2 className="w-3.5 h-3.5" /> Repo Bug Finder
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 Scan any GitHub repository for bugs, fragile logic, & improvements
               </h2>
               <p className="text-sm text-slate-400 leading-relaxed">
-                Enter a public GitHub repository URL or sign in with GitHub above to audit private projects.
-                Our backend fetches key source code files via GitHub REST API, analyzes logic paths using AI, and streams live telemetry.
+                Enter a public GitHub repository URL or sign in with GitHub above to access private projects.
               </p>
             </div>
 
@@ -441,14 +440,14 @@ export default function Home() {
                   <Paperclip className="w-3.5 h-3.5" /> PDF Reference Document
                 </span>
                 <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-                  Optional Context
+                  Optional
                 </span>
               </div>
               <h3 className="text-sm font-bold text-slate-200">
-                Attach Specification or Requirements PDF
+                Attach Specification/Requirements or Business Rules
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Attached PDFs will be parsed via <code className="text-cyan-400 bg-slate-950 px-1 py-0.5 rounded border border-slate-800">/api/upload-pdf</code> and sent as prompt context for the scan.
+                Rules you provide will be taken into consideration when running the test scan to make sure the logic is valid.
               </p>
             </div>
 

@@ -116,15 +116,15 @@ class ScannerService {
 You are a senior QA & Security Engineer performing an automated audit on the repository ${owner}/${repo}.
 Examine the following source files and return a JSON object with this EXACT structure:
 {
-  "summary": "Executive summary of repo quality.",
+  "summary": "An executive summary of the repository quality.",
   "criticalBugs": [
-    { "file": "path/file.ext", "issue": "...", "impact": "...", "recommendedFix": "..." }
+    { "file": "path/file.ext", "issue": "concise description of the bug", "impact": "Impact of the bug", "brokenCode": "broken code", "recommendedFix": "fixed code" }
   ],
   "fragileLogic": [
-    { "file": "path/file.ext", "risk": "...", "scenario": "..." }
+    { "file": "path/file.ext", "risk": "Description of the risk", "scenario": "Scenario where the bug may occur", "brokenCode": "broken code", "recommendedFix": "fixed code"}
   ],
-  "improvements": [
-    { "file": "path/file.ext", "category": "...", "suggestion": "..." }
+  "maintainabilitySuggestions": [
+    { "file": "path/file.ext", "issue": "concise description of maintainability issue", "brokenCode": "section of code that needs fixing", "recommendedFix": "fixed code" }
   ]
 }
 ${context != null ? "The code should follow this logic: " + context : ""}
