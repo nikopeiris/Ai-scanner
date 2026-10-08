@@ -36,6 +36,89 @@ import {
 } from "lucide-react";
 import { FaGithub as Github } from "react-icons/fa";
 
+// Helper to clean raw code string artifacts (stripping array brackets, line wrapper quotes, escaped newlines, and double commas)
+function cleanCodeString(rawCode) {
+  if (!rawCode) return "";
+
+  let text = "";
+
+  if (Array.isArray(rawCode)) {
+    text = rawCode.join("\n");
+  } else if (typeof rawCode === "string") {
+    let trimmed = rawCode.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          text = parsed.join("\n");
+        } else {
+          text = trimmed;
+        }
+      } catch (e) {
+        text = trimmed.slice(1, -1);
+      }
+    } else {
+      text = trimmed;
+    }
+  } else {
+    text = String(rawCode);
+  }
+
+  // Clean double commas & escaped newlines
+  text = text.replace(/,(\s*,)+/g, ",");
+  text = text.replace(/\\n/g, "\n");
+
+  // Process line by line to strip surrounding double quotes if present on stringified lines
+  const lines = text.split("\n").map((line) => {
+    let trimmedLine = line.trim();
+    // If line is enclosed in quotes e.g. "const foo = 1", or "  method: \"POST\","
+    if (trimmedLine.startsWith('"') && (trimmedLine.endsWith('"') || trimmedLine.endsWith('",'))) {
+      let hasComma = trimmedLine.endsWith(",");
+      let inner = hasComma ? trimmedLine.slice(0, -1) : trimmedLine;
+      if (inner.startsWith('"') && inner.endsWith('"')) {
+        inner = inner.slice(1, -1);
+      }
+      inner = inner.replace(/\\"/g, '"').replace(/\\'/g, "'");
+      return inner + (hasComma ? "," : "");
+    }
+    return line;
+  });
+
+  return lines.join("\n").trim();
+}
+
+// Structured code block renderer with line numbers and syntax formatting
+function FormattedCodeBlock({ code, colorTheme = "emerald" }) {
+  const cleanedText = cleanCodeString(code);
+  const lines = cleanedText.split("\n");
+
+  const textColorClass =
+    colorTheme === "rose"
+      ? "text-rose-200"
+      : colorTheme === "amber"
+      ? "text-amber-200"
+      : colorTheme === "cyan"
+      ? "text-cyan-200"
+      : "text-emerald-200";
+
+  return (
+    <div className="font-mono text-xs overflow-x-auto leading-relaxed bg-slate-950 p-4 rounded-b-xl border-t border-slate-800/80 max-h-96">
+      <div className="table w-full border-collapse">
+        {lines.map((lineText, idx) => (
+          <div key={idx} className="table-row hover:bg-slate-900/40 transition-colors">
+            <span className="table-cell text-right pr-4 select-none opacity-30 text-[11px] font-mono text-slate-400 w-8 border-r border-slate-800/50">
+              {idx + 1}
+            </span>
+            <span className={`table-cell pl-4 whitespace-pre font-mono ${textColorClass}`}>
+              {lineText || " "}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [repoUrl, setRepoUrl] = useState("https://github.com/expressjs/express");
   const [scanning, setScanning] = useState(false);
@@ -52,9 +135,39 @@ export default function Home() {
     setExpandedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
-  const handleCopyCode = (key, text) => {
+  const handleCopyCode = async (key, text) => {
     if (!text) return;
-    navigator.clipboard.writeText(text);
+    const cleanText = cleanCodeString(text);
+    let copied = false;
+
+    try {
+      if (navigator.clipboard && document.hasFocus()) {
+        await navigator.clipboard.writeText(cleanText);
+        copied = true;
+      }
+    } catch (err) {
+      console.warn("Clipboard API error, using execCommand fallback:", err);
+    }
+
+    if (!copied) {
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = cleanText;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "-9999px";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        copied = true;
+      } catch (fallbackErr) {
+        console.error("Fallback execCommand copy failed:", fallbackErr);
+      }
+    }
+
     setCopiedState((prev) => ({ ...prev, [key]: true }));
     setTimeout(() => {
       setCopiedState((prev) => ({ ...prev, [key]: false }));
@@ -561,8 +674,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Live Terminal Log Section (SSE Streaming) */}
-        {(scanning || progressLogs.length > 0) && (
+        {/* Live Terminal Log Section (SSE Streaming) - Shown ONLY during scanning phase */}
+        {(scanning && progressLogs.length > 0) && (
           <section className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
             <div className="bg-slate-900 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -1069,9 +1182,7 @@ export default function Home() {
                                             )}
                                           </button>
                                         </div>
-                                        <pre className="p-4 text-xs font-mono text-rose-200 overflow-x-auto leading-relaxed bg-slate-950/80">
-                                          <code>{item.brokenCode}</code>
-                                        </pre>
+                                        <FormattedCodeBlock code={item.brokenCode} colorTheme="rose" />
                                       </div>
                                     )}
 
@@ -1097,9 +1208,7 @@ export default function Home() {
                                             )}
                                           </button>
                                         </div>
-                                        <pre className="p-4 text-xs font-mono text-emerald-200 overflow-x-auto leading-relaxed bg-slate-950/80">
-                                          <code>{item.recommendedFix}</code>
-                                        </pre>
+                                        <FormattedCodeBlock code={item.recommendedFix} colorTheme="emerald" />
                                       </div>
                                     )}
                                   </div>
@@ -1193,9 +1302,7 @@ export default function Home() {
                                             )}
                                           </button>
                                         </div>
-                                        <pre className="p-4 text-xs font-mono text-amber-200 overflow-x-auto leading-relaxed bg-slate-950/80">
-                                          <code>{item.brokenCode}</code>
-                                        </pre>
+                                        <FormattedCodeBlock code={item.brokenCode} colorTheme="amber" />
                                       </div>
                                     )}
 
@@ -1220,9 +1327,7 @@ export default function Home() {
                                             )}
                                           </button>
                                         </div>
-                                        <pre className="p-4 text-xs font-mono text-emerald-200 overflow-x-auto leading-relaxed bg-slate-950/80">
-                                          <code>{item.recommendedFix}</code>
-                                        </pre>
+                                        <FormattedCodeBlock code={item.recommendedFix} colorTheme="emerald" />
                                       </div>
                                     )}
                                   </div>
@@ -1310,9 +1415,7 @@ export default function Home() {
                                             )}
                                           </button>
                                         </div>
-                                        <pre className="p-4 text-xs font-mono text-cyan-200 overflow-x-auto leading-relaxed bg-slate-950/80">
-                                          <code>{item.brokenCode}</code>
-                                        </pre>
+                                        <FormattedCodeBlock code={item.brokenCode} colorTheme="cyan" />
                                       </div>
                                     )}
 
@@ -1337,9 +1440,7 @@ export default function Home() {
                                             )}
                                           </button>
                                         </div>
-                                        <pre className="p-4 text-xs font-mono text-emerald-200 overflow-x-auto leading-relaxed bg-slate-950/80">
-                                          <code>{item.recommendedFix}</code>
-                                        </pre>
+                                        <FormattedCodeBlock code={item.recommendedFix} colorTheme="emerald" />
                                       </div>
                                     )}
                                   </div>
