@@ -117,6 +117,7 @@ You are a senior QA & Security Engineer performing an automated audit on the rep
 Examine the following source files and return a JSON object with this EXACT structure:
 {
   "summary": "An executive summary of the repository quality.",
+  "rating": "an overall rating out of 100 based on number of critical bugs, fragile logic and maintainability issues based on below context.",
   "criticalBugs": [
     { "file": "path/file.ext", "issue": "concise description of the bug", "impact": "Impact of the bug", "brokenCode": "broken code", "recommendedFix": "fixed code" }
   ],

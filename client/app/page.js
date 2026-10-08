@@ -23,6 +23,16 @@ import {
   X,
   Paperclip,
   FileCheck,
+  PieChart,
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Check,
+  Layers,
+  Wrench,
+  Flame,
+  Activity,
 } from "lucide-react";
 import { FaGithub as Github } from "react-icons/fa";
 
@@ -31,9 +41,25 @@ export default function Home() {
   const [scanning, setScanning] = useState(false);
   const [progressLogs, setProgressLogs] = useState([]);
   const [progressPercent, setProgressPercent] = useState(0);
-  const [activeTab, setActiveTab] = useState("bugs"); // 'bugs' | 'fragile' | 'improvements'
+  const [mainReportTab, setMainReportTab] = useState("overall"); // 'overall' | 'deep'
+  const [deepCategory, setDeepCategory] = useState("criticalBugs"); // 'criticalBugs' | 'fragileLogic' | 'maintainabilitySuggestions'
+  const [expandedItems, setExpandedItems] = useState({});
+  const [copiedState, setCopiedState] = useState({});
   const [scanResult, setScanResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  const toggleExpand = (itemId) => {
+    setExpandedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
+  };
+
+  const handleCopyCode = (key, text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedState((prev) => ({ ...prev, [key]: true }));
+    setTimeout(() => {
+      setCopiedState((prev) => ({ ...prev, [key]: false }));
+    }, 2000);
+  };
 
   // GitHub Auth & Repos state
   const [user, setUser] = useState(null);
@@ -583,224 +609,753 @@ export default function Home() {
         )}
 
         {/* Dashboard Results View */}
-        {scanResult && (
-          <div className="space-y-6 animate-fadeIn">
-            {/* Executive Summary Banner */}
-            <section className="bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/30 border border-cyan-900/50 rounded-2xl p-6 sm:p-8 shadow-2xl relative">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400">
-                  <FileCode className="w-6 h-6" />
-                </div>
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h3 className="text-lg font-bold text-white tracking-tight">Executive Audit Summary</h3>
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                      QA Ready
+        {scanResult && (() => {
+          const bugs = scanResult.criticalBugs || [];
+          const fragile = scanResult.fragileLogic || [];
+          const maintainability = scanResult.maintainabilitySuggestions || scanResult.improvements || [];
+          const totalIssues = bugs.length + fragile.length + maintainability.length;
+          const numericRating = parseInt(scanResult.rating, 10) || (totalIssues === 0 ? 100 : Math.max(20, 100 - (bugs.length * 15 + fragile.length * 8 + maintainability.length * 4)));
+
+          // Group issues by file for Heat Map
+          const fileHeatMap = {};
+          bugs.forEach((b) => {
+            if (!fileHeatMap[b.file]) fileHeatMap[b.file] = { critical: 0, fragile: 0, maintainability: 0, total: 0 };
+            fileHeatMap[b.file].critical++;
+            fileHeatMap[b.file].total++;
+          });
+          fragile.forEach((f) => {
+            if (!fileHeatMap[f.file]) fileHeatMap[f.file] = { critical: 0, fragile: 0, maintainability: 0, total: 0 };
+            fileHeatMap[f.file].fragile++;
+            fileHeatMap[f.file].total++;
+          });
+          maintainability.forEach((m) => {
+            if (!fileHeatMap[m.file]) fileHeatMap[m.file] = { critical: 0, fragile: 0, maintainability: 0, total: 0 };
+            fileHeatMap[m.file].maintainability++;
+            fileHeatMap[m.file].total++;
+          });
+
+          // SVG Pie Chart dimensions
+          const circumference = 282.74; // 2 * PI * 45
+          const bugSlice = totalIssues > 0 ? (bugs.length / totalIssues) * circumference : 0;
+          const fragileSlice = totalIssues > 0 ? (fragile.length / totalIssues) * circumference : 0;
+          const maintainabilitySlice = totalIssues > 0 ? (maintainability.length / totalIssues) * circumference : 0;
+
+          return (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Executive Header Banner with Overall Rating */}
+              <section className="bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/30 border border-cyan-900/50 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-3 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                        Executive Quality Report
+                      </span>
+                      <span className="text-xs text-slate-400">&bull; Overall Score: {numericRating}/100</span>
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Repository Audit Summary</h3>
+                    <p className="text-sm text-slate-300 leading-relaxed max-w-3xl">{scanResult.summary}</p>
+                  </div>
+
+                  {/* Rating Meter Badge */}
+                  <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 flex flex-col items-center justify-center text-center shadow-inner min-w-[180px]">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Quality Score</span>
+                    <div className="relative flex items-center justify-center">
+                      <span
+                        className={`text-4xl font-extrabold tracking-tight ${
+                          numericRating >= 80
+                            ? "text-emerald-400"
+                            : numericRating >= 60
+                            ? "text-amber-400"
+                            : "text-rose-400"
+                        }`}
+                      >
+                        {numericRating}
+                      </span>
+                      <span className="text-xs font-bold text-slate-500 ml-0.5 mt-2">/100</span>
+                    </div>
+                    <span
+                      className={`text-[11px] font-bold mt-1 px-2.5 py-0.5 rounded-full ${
+                        numericRating >= 80
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          : numericRating >= 60
+                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                          : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                      }`}
+                    >
+                      {numericRating >= 80 ? "Good Quality" : numericRating >= 60 ? "Needs Review" : "Critical Action Required"}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-300 leading-relaxed">{scanResult.summary}</p>
+                </div>
+              </section>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-                    <div className="bg-slate-950/60 border border-rose-900/40 p-4 rounded-xl flex items-center justify-between">
-                      <div>
-                        <div className="text-xs text-rose-400 font-medium">Critical Bugs</div>
-                        <div className="text-2xl font-bold text-rose-200">{scanResult.criticalBugs?.length || 0}</div>
+              {/* Main Report Dashboard Navigation Tabs */}
+              <div className="flex border-b border-slate-800 space-x-2 sm:space-x-4">
+                <button
+                  onClick={() => setMainReportTab("overall")}
+                  className={`px-5 py-3.5 text-sm font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                    mainReportTab === "overall"
+                      ? "border-cyan-500 text-cyan-400 bg-cyan-500/5 shadow-sm"
+                      : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
+                  }`}
+                >
+                  <PieChart className="w-4 h-4" />
+                  Overall Insights
+                </button>
+
+                <button
+                  onClick={() => setMainReportTab("deep")}
+                  className={`px-5 py-3.5 text-sm font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                    mainReportTab === "deep"
+                      ? "border-cyan-500 text-cyan-400 bg-cyan-500/5 shadow-sm"
+                      : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Deep Insights
+                  <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-cyan-950 text-cyan-300 border border-cyan-800">
+                    {totalIssues}
+                  </span>
+                </button>
+              </div>
+
+              {/* TAB 1: OVERALL INSIGHTS */}
+              {mainReportTab === "overall" && (
+                <div className="space-y-6">
+                  {/* Summary Metric Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-slate-900/60 border border-rose-900/40 p-5 rounded-2xl flex items-center justify-between shadow-lg">
+                      <div className="space-y-1">
+                        <span className="text-xs text-rose-400 font-semibold uppercase tracking-wider">Critical Bugs</span>
+                        <div className="text-3xl font-extrabold text-rose-200">{bugs.length}</div>
+                        <p className="text-[11px] text-slate-400">High severity runtime crashes</p>
                       </div>
-                      <ShieldAlert className="w-8 h-8 text-rose-500/40" />
+                      <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400">
+                        <ShieldAlert className="w-7 h-7" />
+                      </div>
                     </div>
-                    <div className="bg-slate-950/60 border border-amber-900/40 p-4 rounded-xl flex items-center justify-between">
-                      <div>
-                        <div className="text-xs text-amber-400 font-medium">Fragile Logic</div>
-                        <div className="text-2xl font-bold text-amber-200">{scanResult.fragileLogic?.length || 0}</div>
+
+                    <div className="bg-slate-900/60 border border-amber-900/40 p-5 rounded-2xl flex items-center justify-between shadow-lg">
+                      <div className="space-y-1">
+                        <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider">Fragile Logic</span>
+                        <div className="text-3xl font-extrabold text-amber-200">{fragile.length}</div>
+                        <p className="text-[11px] text-slate-400">Unbounded state & edge cases</p>
                       </div>
-                      <AlertTriangle className="w-8 h-8 text-amber-500/40" />
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
+                        <AlertTriangle className="w-7 h-7" />
+                      </div>
                     </div>
-                    <div className="bg-slate-950/60 border border-cyan-900/40 p-4 rounded-xl flex items-center justify-between">
-                      <div>
-                        <div className="text-xs text-cyan-400 font-medium">Improvements</div>
-                        <div className="text-2xl font-bold text-cyan-200">{scanResult.improvements?.length || 0}</div>
+
+                    <div className="bg-slate-900/60 border border-cyan-900/40 p-5 rounded-2xl flex items-center justify-between shadow-lg">
+                      <div className="space-y-1">
+                        <span className="text-xs text-cyan-400 font-semibold uppercase tracking-wider">Maintainability</span>
+                        <div className="text-3xl font-extrabold text-cyan-200">{maintainability.length}</div>
+                        <p className="text-[11px] text-slate-400">Refactoring & quality ideas</p>
                       </div>
-                      <Lightbulb className="w-8 h-8 text-cyan-500/40" />
+                      <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400">
+                        <Lightbulb className="w-7 h-7" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Charts & Heatmap Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Donut / Pie Chart Card */}
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm shadow-xl space-y-4 flex flex-col justify-between">
+                      <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                        <h4 className="font-bold text-white text-base flex items-center gap-2">
+                          <PieChart className="w-4 h-4 text-cyan-400" />
+                          Issue Distribution Breakdown
+                        </h4>
+                        <span className="text-xs text-slate-400">{totalIssues} Total Issues</span>
+                      </div>
+
+                      {totalIssues === 0 ? (
+                        <div className="py-12 text-center space-y-2">
+                          <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
+                          <p className="text-sm font-semibold text-slate-200">Zero issues detected!</p>
+                          <p className="text-xs text-slate-400">The repository passed all current quality standards.</p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-8 py-4">
+                          {/* SVG Donut Chart */}
+                          <div className="relative w-40 h-40 flex-shrink-0">
+                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                              {/* Background Circle */}
+                              <circle cx="60" cy="60" r="45" stroke="#1e293b" strokeWidth="16" fill="transparent" />
+
+                              {/* Critical Bugs Slice (Rose) */}
+                              {bugs.length > 0 && (
+                                <circle
+                                  cx="60"
+                                  cy="60"
+                                  r="45"
+                                  stroke="#f43f5e"
+                                  strokeWidth="16"
+                                  fill="transparent"
+                                  strokeDasharray={`${bugSlice} ${circumference}`}
+                                  strokeDashoffset="0"
+                                />
+                              )}
+
+                              {/* Fragile Logic Slice (Amber) */}
+                              {fragile.length > 0 && (
+                                <circle
+                                  cx="60"
+                                  cy="60"
+                                  r="45"
+                                  stroke="#f59e0b"
+                                  strokeWidth="16"
+                                  fill="transparent"
+                                  strokeDasharray={`${fragileSlice} ${circumference}`}
+                                  strokeDashoffset={`-${bugSlice}`}
+                                />
+                              )}
+
+                              {/* Maintainability Slice (Cyan) */}
+                              {maintainability.length > 0 && (
+                                <circle
+                                  cx="60"
+                                  cy="60"
+                                  r="45"
+                                  stroke="#06b6d4"
+                                  strokeWidth="16"
+                                  fill="transparent"
+                                  strokeDasharray={`${maintainabilitySlice} ${circumference}`}
+                                  strokeDashoffset={`-${bugSlice + fragileSlice}`}
+                                />
+                              )}
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                              <span className="text-2xl font-extrabold text-white">{totalIssues}</span>
+                              <span className="text-[10px] text-slate-400 uppercase font-semibold">Findings</span>
+                            </div>
+                          </div>
+
+                          {/* Chart Legend */}
+                          <div className="space-y-3 flex-1 w-full">
+                            <div className="flex items-center justify-between bg-slate-950/60 p-3 rounded-xl border border-rose-900/30">
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-3 h-3 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50" />
+                                <span className="text-xs font-semibold text-slate-200">Critical Bugs</span>
+                              </div>
+                              <span className="text-xs font-bold text-rose-300">
+                                {bugs.length} ({Math.round((bugs.length / totalIssues) * 100)}%)
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between bg-slate-950/60 p-3 rounded-xl border border-amber-900/30">
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-3 h-3 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50" />
+                                <span className="text-xs font-semibold text-slate-200">Fragile Logic</span>
+                              </div>
+                              <span className="text-xs font-bold text-amber-300">
+                                {fragile.length} ({Math.round((fragile.length / totalIssues) * 100)}%)
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between bg-slate-950/60 p-3 rounded-xl border border-cyan-900/30">
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-3 h-3 rounded-full bg-cyan-500 shadow-sm shadow-cyan-500/50" />
+                                <span className="text-xs font-semibold text-slate-200">Maintainability</span>
+                              </div>
+                              <span className="text-xs font-bold text-cyan-300">
+                                {maintainability.length} ({Math.round((maintainability.length / totalIssues) * 100)}%)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Repository File Heatmap Card */}
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm shadow-xl space-y-4 flex flex-col justify-between">
+                      <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                        <h4 className="font-bold text-white text-base flex items-center gap-2">
+                          <Flame className="w-4 h-4 text-amber-400" />
+                          Codebase File Heat Map
+                        </h4>
+                        <span className="text-xs text-slate-400">{Object.keys(fileHeatMap).length} Affected Files</span>
+                      </div>
+
+                      {Object.keys(fileHeatMap).length === 0 ? (
+                        <div className="py-12 text-center text-xs text-slate-500">
+                          No file-level issue clusters recorded.
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                          {Object.entries(fileHeatMap).map(([filePath, stats], idx) => {
+                            const isHighRisk = stats.critical > 0;
+                            return (
+                              <div
+                                key={idx}
+                                className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                                  isHighRisk
+                                    ? "bg-rose-950/20 border-rose-900/40 hover:border-rose-700/60"
+                                    : stats.fragile > 0
+                                    ? "bg-amber-950/20 border-amber-900/40 hover:border-amber-700/60"
+                                    : "bg-cyan-950/20 border-cyan-900/40 hover:border-cyan-700/60"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                  <Code2
+                                    className={`w-4 h-4 flex-shrink-0 ${
+                                      isHighRisk ? "text-rose-400" : stats.fragile > 0 ? "text-amber-400" : "text-cyan-400"
+                                    }`}
+                                  />
+                                  <span className="text-xs font-mono font-medium text-slate-200 truncate" title={filePath}>
+                                    {filePath}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {stats.critical > 0 && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                      {stats.critical} Critical
+                                    </span>
+                                  )}
+                                  {stats.fragile > 0 && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                      {stats.fragile} Fragile
+                                    </span>
+                                  )}
+                                  {stats.maintainability > 0 && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                      {stats.maintainability} Suggestion
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              )}
 
-            {/* Tabbed Navigation Bar */}
-            <div className="flex border-b border-slate-800 space-x-2 sm:space-x-4">
-              <button
-                onClick={() => setActiveTab("bugs")}
-                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${activeTab === "bugs"
-                  ? "border-rose-500 text-rose-400 bg-rose-500/5"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-                  }`}
-              >
-                <ShieldAlert className="w-4 h-4" />
-                Critical Bugs
-                <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-rose-950 text-rose-300 border border-rose-800">
-                  {scanResult.criticalBugs?.length || 0}
-                </span>
-              </button>
+              {/* TAB 2: DEEP INSIGHTS */}
+              {mainReportTab === "deep" && (
+                <div className="space-y-6">
+                  {/* Category Selection Sub-tabs */}
+                  <div className="flex flex-wrap items-center gap-3 bg-slate-950/80 p-2 rounded-xl border border-slate-800">
+                    <button
+                      onClick={() => setDeepCategory("criticalBugs")}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                        deepCategory === "criticalBugs"
+                          ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-md"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                      }`}
+                    >
+                      <ShieldAlert className="w-4 h-4 text-rose-400" />
+                      Critical Bugs
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-950 text-rose-300 border border-rose-800">
+                        {bugs.length}
+                      </span>
+                    </button>
 
-              <button
-                onClick={() => setActiveTab("fragile")}
-                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${activeTab === "fragile"
-                  ? "border-amber-500 text-amber-400 bg-amber-500/5"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-                  }`}
-              >
-                <AlertTriangle className="w-4 h-4" />
-                Fragile Logic & Edge Cases
-                <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-amber-950 text-amber-300 border border-amber-800">
-                  {scanResult.fragileLogic?.length || 0}
-                </span>
-              </button>
+                    <button
+                      onClick={() => setDeepCategory("fragileLogic")}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                        deepCategory === "fragileLogic"
+                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-md"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                      }`}
+                    >
+                      <AlertTriangle className="w-4 h-4 text-amber-400" />
+                      Fragile Logic & Edge Cases
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-950 text-amber-300 border border-amber-800">
+                        {fragile.length}
+                      </span>
+                    </button>
 
-              <button
-                onClick={() => setActiveTab("improvements")}
-                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${activeTab === "improvements"
-                  ? "border-cyan-500 text-cyan-400 bg-cyan-500/5"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-                  }`}
-              >
-                <Lightbulb className="w-4 h-4" />
-                Suggested Improvements
-                <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-cyan-950 text-cyan-300 border border-cyan-800">
-                  {scanResult.improvements?.length || 0}
-                </span>
-              </button>
+                    <button
+                      onClick={() => setDeepCategory("maintainabilitySuggestions")}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                        deepCategory === "maintainabilitySuggestions"
+                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-md"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                      }`}
+                    >
+                      <Lightbulb className="w-4 h-4 text-cyan-400" />
+                      Maintainability Suggestions
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800">
+                        {maintainability.length}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Category Items List with Expandable Code Details */}
+                  <div className="space-y-4">
+                    {/* CRITICAL BUGS */}
+                    {deepCategory === "criticalBugs" && (
+                      <div className="space-y-4">
+                        {bugs.length === 0 ? (
+                          <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 space-y-2">
+                            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                            <p className="text-sm font-semibold text-slate-200">No critical bugs found!</p>
+                            <p className="text-xs text-slate-500">All analyzed functions appear free of severe exceptions.</p>
+                          </div>
+                        ) : (
+                          bugs.map((item, index) => {
+                            const itemId = `bug-${index}`;
+                            const isExpanded = expandedItems[itemId];
+                            return (
+                              <div
+                                key={index}
+                                className="bg-slate-900/60 border border-rose-900/40 rounded-2xl overflow-hidden hover:border-rose-700/60 transition-all shadow-xl"
+                              >
+                                {/* High Level Overview Header (Clickable) */}
+                                <div
+                                  onClick={() => toggleExpand(itemId)}
+                                  className="p-5 sm:p-6 cursor-pointer select-none space-y-3 hover:bg-slate-900/80 transition-all"
+                                >
+                                  <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono font-semibold bg-rose-950 text-rose-300 border border-rose-800">
+                                      <Code2 className="w-3.5 h-3.5" />
+                                      {item.file}
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-300 uppercase tracking-wider">
+                                        Critical Bug
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="p-1 text-slate-400 hover:text-white rounded-md bg-slate-950 border border-slate-800 transition-all"
+                                      >
+                                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <h4 className="font-bold text-white text-base sm:text-lg leading-snug">{item.issue}</h4>
+                                    {item.impact && (
+                                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                                        <strong className="text-rose-400 font-semibold">Impact: </strong>
+                                        {item.impact}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 pt-1">
+                                    <span>{isExpanded ? "Collapse code details" : "Click to view code & recommended fix"}</span>
+                                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                  </div>
+                                </div>
+
+                                {/* Expanded Code Details View */}
+                                {isExpanded && (
+                                  <div className="border-t border-slate-800/80 p-5 sm:p-6 bg-slate-950/90 space-y-4">
+                                    {/* Broken Code Box */}
+                                    {item.brokenCode && (
+                                      <div className="bg-slate-950 rounded-xl border border-rose-900/50 overflow-hidden shadow-md space-y-2">
+                                        <div className="bg-rose-950/40 px-4 py-2 border-b border-rose-900/40 flex items-center justify-between">
+                                          <span className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+                                            <span className="text-rose-500 font-extrabold">-</span> Broken Code / Current Implementation
+                                          </span>
+                                          <button
+                                            onClick={() => handleCopyCode(`broken-${itemId}`, item.brokenCode)}
+                                            className="text-slate-400 hover:text-white text-[11px] font-mono flex items-center gap-1 cursor-pointer bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800"
+                                          >
+                                            {copiedState[`broken-${itemId}`] ? (
+                                              <>
+                                                <Check className="w-3 h-3 text-emerald-400" /> Copied
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Copy className="w-3 h-3" /> Copy
+                                              </>
+                                            )}
+                                          </button>
+                                        </div>
+                                        <pre className="p-4 text-xs font-mono text-rose-200 overflow-x-auto leading-relaxed bg-slate-950/80">
+                                          <code>{item.brokenCode}</code>
+                                        </pre>
+                                      </div>
+                                    )}
+
+                                    {/* Recommended Fix Box */}
+                                    {item.recommendedFix && (
+                                      <div className="bg-slate-950 rounded-xl border border-emerald-900/50 overflow-hidden shadow-md space-y-2">
+                                        <div className="bg-emerald-950/40 px-4 py-2 border-b border-emerald-900/40 flex items-center justify-between">
+                                          <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                                            <span className="text-emerald-400 font-extrabold">+</span> Recommended Fix
+                                          </span>
+                                          <button
+                                            onClick={() => handleCopyCode(`fix-${itemId}`, item.recommendedFix)}
+                                            className="text-slate-400 hover:text-white text-[11px] font-mono flex items-center gap-1 cursor-pointer bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800"
+                                          >
+                                            {copiedState[`fix-${itemId}`] ? (
+                                              <>
+                                                <Check className="w-3 h-3 text-emerald-400" /> Copied
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Copy className="w-3 h-3" /> Copy Fix
+                                              </>
+                                            )}
+                                          </button>
+                                        </div>
+                                        <pre className="p-4 text-xs font-mono text-emerald-200 overflow-x-auto leading-relaxed bg-slate-950/80">
+                                          <code>{item.recommendedFix}</code>
+                                        </pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+
+                    {/* FRAGILE LOGIC */}
+                    {deepCategory === "fragileLogic" && (
+                      <div className="space-y-4">
+                        {fragile.length === 0 ? (
+                          <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 space-y-2">
+                            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                            <p className="text-sm font-semibold text-slate-200">No fragile logic or unhandled edge cases!</p>
+                          </div>
+                        ) : (
+                          fragile.map((item, index) => {
+                            const itemId = `fragile-${index}`;
+                            const isExpanded = expandedItems[itemId];
+                            return (
+                              <div
+                                key={index}
+                                className="bg-slate-900/60 border border-amber-900/40 rounded-2xl overflow-hidden hover:border-amber-700/60 transition-all shadow-xl"
+                              >
+                                {/* High Level Overview Header */}
+                                <div
+                                  onClick={() => toggleExpand(itemId)}
+                                  className="p-5 sm:p-6 cursor-pointer select-none space-y-3 hover:bg-slate-900/80 transition-all"
+                                >
+                                  <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono font-semibold bg-amber-950 text-amber-300 border border-amber-800">
+                                      <Code2 className="w-3.5 h-3.5" />
+                                      {item.file}
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 uppercase tracking-wider">
+                                        Fragile Logic
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="p-1 text-slate-400 hover:text-white rounded-md bg-slate-950 border border-slate-800 transition-all"
+                                      >
+                                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <h4 className="font-bold text-white text-base sm:text-lg leading-snug">
+                                      {item.risk || item.issue}
+                                    </h4>
+                                    {item.scenario && (
+                                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                                        <strong className="text-amber-400 font-semibold">Trigger Scenario: </strong>
+                                        {item.scenario}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 pt-1">
+                                    <span>{isExpanded ? "Collapse details" : "Click to view code & recommended fix"}</span>
+                                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                  </div>
+                                </div>
+
+                                {/* Expanded Code Details View */}
+                                {isExpanded && (
+                                  <div className="border-t border-slate-800/80 p-5 sm:p-6 bg-slate-950/90 space-y-4">
+                                    {item.brokenCode && (
+                                      <div className="bg-slate-950 rounded-xl border border-amber-900/50 overflow-hidden shadow-md space-y-2">
+                                        <div className="bg-amber-950/40 px-4 py-2 border-b border-amber-900/40 flex items-center justify-between">
+                                          <span className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                                            Fragile / Unbounded Code
+                                          </span>
+                                          <button
+                                            onClick={() => handleCopyCode(`broken-${itemId}`, item.brokenCode)}
+                                            className="text-slate-400 hover:text-white text-[11px] font-mono flex items-center gap-1 cursor-pointer bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800"
+                                          >
+                                            {copiedState[`broken-${itemId}`] ? (
+                                              <>
+                                                <Check className="w-3 h-3 text-emerald-400" /> Copied
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Copy className="w-3 h-3" /> Copy
+                                              </>
+                                            )}
+                                          </button>
+                                        </div>
+                                        <pre className="p-4 text-xs font-mono text-amber-200 overflow-x-auto leading-relaxed bg-slate-950/80">
+                                          <code>{item.brokenCode}</code>
+                                        </pre>
+                                      </div>
+                                    )}
+
+                                    {item.recommendedFix && (
+                                      <div className="bg-slate-950 rounded-xl border border-emerald-900/50 overflow-hidden shadow-md space-y-2">
+                                        <div className="bg-emerald-950/40 px-4 py-2 border-b border-emerald-900/40 flex items-center justify-between">
+                                          <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                                            Recommended Robust Fix
+                                          </span>
+                                          <button
+                                            onClick={() => handleCopyCode(`fix-${itemId}`, item.recommendedFix)}
+                                            className="text-slate-400 hover:text-white text-[11px] font-mono flex items-center gap-1 cursor-pointer bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800"
+                                          >
+                                            {copiedState[`fix-${itemId}`] ? (
+                                              <>
+                                                <Check className="w-3 h-3 text-emerald-400" /> Copied
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Copy className="w-3 h-3" /> Copy Fix
+                                              </>
+                                            )}
+                                          </button>
+                                        </div>
+                                        <pre className="p-4 text-xs font-mono text-emerald-200 overflow-x-auto leading-relaxed bg-slate-950/80">
+                                          <code>{item.recommendedFix}</code>
+                                        </pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+
+                    {/* MAINTAINABILITY SUGGESTIONS */}
+                    {deepCategory === "maintainabilitySuggestions" && (
+                      <div className="space-y-4">
+                        {maintainability.length === 0 ? (
+                          <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 space-y-2">
+                            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                            <p className="text-sm font-semibold text-slate-200">No maintainability issues suggested!</p>
+                          </div>
+                        ) : (
+                          maintainability.map((item, index) => {
+                            const itemId = `maint-${index}`;
+                            const isExpanded = expandedItems[itemId];
+                            return (
+                              <div
+                                key={index}
+                                className="bg-slate-900/60 border border-cyan-900/40 rounded-2xl overflow-hidden hover:border-cyan-700/60 transition-all shadow-xl"
+                              >
+                                {/* High Level Overview Header */}
+                                <div
+                                  onClick={() => toggleExpand(itemId)}
+                                  className="p-5 sm:p-6 cursor-pointer select-none space-y-3 hover:bg-slate-900/80 transition-all"
+                                >
+                                  <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800">
+                                      <Code2 className="w-3.5 h-3.5" />
+                                      {item.file}
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/20 text-cyan-300 uppercase tracking-wider">
+                                        Maintainability
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="p-1 text-slate-400 hover:text-white rounded-md bg-slate-950 border border-slate-800 transition-all"
+                                      >
+                                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <h4 className="font-bold text-white text-base sm:text-lg leading-snug">
+                                      {item.issue || item.suggestion}
+                                    </h4>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 pt-1">
+                                    <span>{isExpanded ? "Collapse details" : "Click to view code & recommended refactor"}</span>
+                                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                  </div>
+                                </div>
+
+                                {/* Expanded Code Details View */}
+                                {isExpanded && (
+                                  <div className="border-t border-slate-800/80 p-5 sm:p-6 bg-slate-950/90 space-y-4">
+                                    {item.brokenCode && (
+                                      <div className="bg-slate-950 rounded-xl border border-cyan-900/50 overflow-hidden shadow-md space-y-2">
+                                        <div className="bg-cyan-950/40 px-4 py-2 border-b border-cyan-900/40 flex items-center justify-between">
+                                          <span className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                                            Existing Code Snippet
+                                          </span>
+                                          <button
+                                            onClick={() => handleCopyCode(`broken-${itemId}`, item.brokenCode)}
+                                            className="text-slate-400 hover:text-white text-[11px] font-mono flex items-center gap-1 cursor-pointer bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800"
+                                          >
+                                            {copiedState[`broken-${itemId}`] ? (
+                                              <>
+                                                <Check className="w-3 h-3 text-emerald-400" /> Copied
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Copy className="w-3 h-3" /> Copy
+                                              </>
+                                            )}
+                                          </button>
+                                        </div>
+                                        <pre className="p-4 text-xs font-mono text-cyan-200 overflow-x-auto leading-relaxed bg-slate-950/80">
+                                          <code>{item.brokenCode}</code>
+                                        </pre>
+                                      </div>
+                                    )}
+
+                                    {item.recommendedFix && (
+                                      <div className="bg-slate-950 rounded-xl border border-emerald-900/50 overflow-hidden shadow-md space-y-2">
+                                        <div className="bg-emerald-950/40 px-4 py-2 border-b border-emerald-900/40 flex items-center justify-between">
+                                          <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                                            Refactored / Cleaned Code
+                                          </span>
+                                          <button
+                                            onClick={() => handleCopyCode(`fix-${itemId}`, item.recommendedFix)}
+                                            className="text-slate-400 hover:text-white text-[11px] font-mono flex items-center gap-1 cursor-pointer bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800"
+                                          >
+                                            {copiedState[`fix-${itemId}`] ? (
+                                              <>
+                                                <Check className="w-3 h-3 text-emerald-400" /> Copied
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Copy className="w-3 h-3" /> Copy Fix
+                                              </>
+                                            )}
+                                          </button>
+                                        </div>
+                                        <pre className="p-4 text-xs font-mono text-emerald-200 overflow-x-auto leading-relaxed bg-slate-950/80">
+                                          <code>{item.recommendedFix}</code>
+                                        </pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-
-            {/* Tab Contents */}
-            <div className="space-y-4">
-              {activeTab === "bugs" && (
-                <div className="space-y-4">
-                  {!scanResult.criticalBugs || scanResult.criticalBugs.length === 0 ? (
-                    <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
-                      <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                      No critical bugs detected in analyzed files!
-                    </div>
-                  ) : (
-                    scanResult.criticalBugs.map((bug, index) => (
-                      <div
-                        key={index}
-                        className="bg-slate-900/60 border border-rose-900/40 rounded-xl p-6 space-y-3 hover:border-rose-700/60 transition-all shadow-lg"
-                      >
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-mono font-semibold bg-rose-950 text-rose-300 border border-rose-800">
-                            <Code2 className="w-3.5 h-3.5" />
-                            {bug.file}
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 uppercase tracking-wider">
-                            Critical
-                          </span>
-                        </div>
-
-                        <div>
-                          <h4 className="font-semibold text-white text-base">{bug.issue}</h4>
-                          <p className="text-sm text-slate-400 mt-1">
-                            <strong className="text-rose-400 font-medium">Impact: </strong>
-                            {bug.impact}
-                          </p>
-                        </div>
-
-                        <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 text-sm space-y-1">
-                          <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider block">
-                            Recommended Fix:
-                          </span>
-                          <p className="text-slate-300 font-mono text-xs leading-relaxed">{bug.recommendedFix}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-
-              {activeTab === "fragile" && (
-                <div className="space-y-4">
-                  {!scanResult.fragileLogic || scanResult.fragileLogic.length === 0 ? (
-                    <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
-                      <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                      No fragile logic or unhandled edge cases detected.
-                    </div>
-                  ) : (
-                    scanResult.fragileLogic.map((item, index) => (
-                      <div
-                        key={index}
-                        className="bg-slate-900/60 border border-amber-900/40 rounded-xl p-6 space-y-3 hover:border-amber-700/60 transition-all shadow-lg"
-                      >
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-mono font-semibold bg-amber-950 text-amber-300 border border-amber-800">
-                            <Code2 className="w-3.5 h-3.5" />
-                            {item.file}
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 uppercase tracking-wider">
-                            Warning
-                          </span>
-                        </div>
-
-                        <div>
-                          <h4 className="font-semibold text-white text-base">{item.issue || item.risk}</h4>
-                          <p className="text-sm text-slate-400 mt-1">
-                            <strong className="text-amber-400 font-medium">Risk: </strong>
-                            {item.risk}
-                          </p>
-                        </div>
-
-                        <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 text-sm space-y-1">
-                          <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider block">
-                            Trigger Scenario:
-                          </span>
-                          <p className="text-slate-300 text-xs leading-relaxed">{item.scenario}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-
-              {activeTab === "improvements" && (
-                <div className="space-y-4">
-                  {!scanResult.improvements || scanResult.improvements.length === 0 ? (
-                    <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
-                      <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                      No further code quality improvements suggested.
-                    </div>
-                  ) : (
-                    scanResult.improvements.map((item, index) => (
-                      <div
-                        key={index}
-                        className="bg-slate-900/60 border border-cyan-900/40 rounded-xl p-6 space-y-3 hover:border-cyan-700/60 transition-all shadow-lg"
-                      >
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-mono font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800">
-                            <Code2 className="w-3.5 h-3.5" />
-                            {item.file}
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/20 text-cyan-300 uppercase tracking-wider">
-                            {item.category || "Refactor"}
-                          </span>
-                        </div>
-
-                        <div>
-                          <h4 className="font-semibold text-white text-base">{item.issue || item.suggestion}</h4>
-                        </div>
-
-                        <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 text-sm space-y-1">
-                          <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider block">
-                            Actionable Suggestion:
-                          </span>
-                          <p className="text-slate-300 text-xs leading-relaxed">{item.suggestion}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </main>
 
       {/* Footer */}
